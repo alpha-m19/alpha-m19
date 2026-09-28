@@ -2,7 +2,6 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 const OUT = process.env.OUT || "dist/activity.svg";
-const LEVEL = { NONE: "#161b22", FIRST_QUARTILE: "#4c0b0e", SECOND_QUARTILE: "#8e1519", THIRD_QUARTILE: "#d7262b", FOURTH_QUARTILE: "#ff5a4e" };
 const RAMP = ["#ff5a4e", "#d7262b", "#a3181d", "#6e1014", "#484f58"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const SANS = "'Segoe UI',Ubuntu,'Helvetica Neue',Arial,sans-serif";
@@ -22,7 +21,7 @@ const QUERY = `query($login: String!) {
     contributionsCollection {
       contributionCalendar {
         totalContributions
-        weeks { contributionDays { date weekday contributionCount contributionLevel } }
+        weeks { contributionDays { date contributionCount } }
       }
     }
   }
@@ -71,85 +70,123 @@ function topLanguages(repos, limit = 5) {
 }
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const fadeIn = (delay) => `<animate attributeName="opacity" from="0" to="1" begin="${delay.toFixed(2)}s" dur=".5s" fill="freeze"/>`;
+const n = (v) => +v.toFixed(1);
+const fadeIn = (delay) => `<animate attributeName="opacity" from="0" to="1" begin="${delay}s" dur=".6s" fill="freeze"/>`;
 const monthYear = (iso) => { const [y, m] = iso.split("-"); return `${MONTHS[+m - 1]} ${y}`; };
 
+// One heartbeat (P, QRS, T) per active week; amplitude grows with that week's contributions.
+function pulsePath(counts, x0, width, base, minA, maxA) {
+  const step = width / counts.length;
+  const max = Math.max(...counts);
+  const d = [`M${x0} ${base}`];
+  let peak = null;
+  counts.forEach((c, i) => {
+    const x = x0 + i * step;
+    if (!c) { d.push(`L${n(x + step)} ${base}`); return; }
+    const a = minA + (maxA - minA) * Math.sqrt(c / max);
+    const at = (f) => n(x + step * f);
+    d.push(
+      `L${at(0.12)} ${base}`,
+      `Q${at(0.22)} ${n(base - a * 0.16)} ${at(0.32)} ${base}`,
+      `L${at(0.4)} ${n(base + a * 0.1)}`,
+      `L${at(0.5)} ${n(base - a)}`,
+      `L${at(0.6)} ${n(base + a * 0.28)}`,
+      `L${at(0.68)} ${base}`,
+      `Q${at(0.82)} ${n(base - a * 0.24)} ${at(0.94)} ${base}`,
+      `L${n(x + step)} ${base}`,
+    );
+    if (!peak || c > peak.c) peak = { c, x: x + step * 0.5, y: base - a };
+  });
+  return { d: d.join(" "), peak };
+}
+
 function render({ weeks, total, current, best, repos, stars, langs }) {
-  const W = 1200, PAD = 60, GX = 104, GY = 214, STEP = (W - PAD - GX) / weeks.length, CELL = STEP - 4;
-  const gridBottom = GY + 7 * STEP;
-  const legendY = gridBottom + 34;
+  const W = 1200, PAD = 60, CX = PAD, CW = W - PAD * 2;
+  const TOP = 176, BASE = 296, BOTTOM = 336;
   const hasLangs = langs.length > 0;
-  const H = Math.round(legendY + (hasLangs ? 96 : 34));
+  const H = hasLangs ? 470 : 390;
+  const counts = weeks.map((w) => w.contributionDays.reduce((a, d) => a + d.contributionCount, 0));
+  const step = CW / weeks.length;
   const first = weeks[0].contributionDays[0].date;
-  const lastWeek = weeks[weeks.length - 1].contributionDays;
-  const last = lastWeek[lastWeek.length - 1].date;
+  const lastDays = weeks[weeks.length - 1].contributionDays;
+  const last = lastDays[lastDays.length - 1].date;
+  const { d, peak } = pulsePath(counts, CX, CW, BASE, 30, BASE - TOP - 14);
   const p = [];
 
-  p.push(`<text x="${PAD}" y="50" font-family="${MONO}" font-size="13" letter-spacing="3" fill="#e5262d">// ACTIVITY</text>`);
+  p.push(`<g><circle cx="${PAD + 5}" cy="45" r="5" fill="#ff5a4e"><animate attributeName="opacity" values="1;.2;1" dur="1.2s" repeatCount="indefinite"/></circle>`
+    + `<text x="${PAD + 18}" y="50" font-family="${MONO}" font-size="13" letter-spacing="3" fill="#e5262d">LIVE // PULSE</text></g>`);
   p.push(`<text x="${W - PAD}" y="50" text-anchor="end" font-family="${MONO}" font-size="13" fill="#8b949e">${monthYear(first)} – ${monthYear(last)}</text>`);
 
   const stats = [
-    [total, "contributions", true],
-    [current, current === 1 ? "day current streak" : "days current streak"],
-    [best, best === 1 ? "day best streak" : "days best streak"],
-    [repos, `public repos · ${stars} ★`],
+    ["CONTRIBUTIONS", total, "", true],
+    ["CURRENT STREAK", current, current === 1 ? " day" : " days"],
+    ["BEST STREAK", best, best === 1 ? " day" : " days"],
+    ["PUBLIC REPOS", repos, stars ? ` · ${stars}★` : ""],
   ];
-  const colW = (W - PAD * 2) / stats.length;
-  stats.forEach(([value, label, accent], i) => {
+  const colW = CW / stats.length;
+  stats.forEach(([label, value, unit, accent], i) => {
     const x = PAD + colW * i;
-    if (i > 0) p.push(`<line x1="${x}" y1="84" x2="${x}" y2="146" stroke="#21262d" stroke-width="2"/>`);
-    const tx = i === 0 ? x : x + 28;
     p.push(`<g opacity="0">${fadeIn(0.1 * i)}`
-      + `<text x="${tx}" y="122" font-family="${SANS}" font-size="40" font-weight="700" fill="${accent ? "#ff5a4e" : "#e6edf3"}">${esc(value)}</text>`
-      + `<text x="${tx}" y="146" font-family="${SANS}" font-size="15" fill="#8b949e">${esc(label)}</text></g>`);
+      + `<text x="${x}" y="96" font-family="${MONO}" font-size="12" letter-spacing="2" fill="#8b949e">${label}</text>`
+      + `<text x="${x}" y="136" font-family="${SANS}" font-size="36" font-weight="700" fill="${accent ? "#ff5a4e" : "#e6edf3"}">${esc(value)}<tspan font-size="17" font-weight="400" fill="#8b949e">${esc(unit)}</tspan></text></g>`);
   });
-  p.push(`<line x1="${PAD}" y1="172" x2="${W - PAD}" y2="172" stroke="#21262d" stroke-width="2"/>`);
 
-  let lastLabelCol = -4;
-  weeks.forEach((w, c) => {
+  p.push(`<rect x="${CX}" y="${TOP - 10}" width="${CW}" height="${BOTTOM - TOP + 10}" fill="url(#grid)"/>`);
+  let prevMonth = -1, lastLabel = -4;
+  weeks.forEach((w, i) => {
     const date = w.contributionDays[0].date;
     const month = +date.slice(5, 7);
-    const isNew = c === 0 ? +date.slice(8) <= 14 : month !== +weeks[c - 1].contributionDays[0].date.slice(5, 7);
-    if (isNew && c - lastLabelCol >= 3 && c < weeks.length - 2) {
-      p.push(`<text x="${(GX + c * STEP).toFixed(1)}" y="${GY - 10}" font-family="${SANS}" font-size="13" fill="#8b949e">${MONTHS[month - 1]}</text>`);
-      lastLabelCol = c;
-    }
+    const isNew = i === 0 ? +date.slice(8) <= 14 : month !== prevMonth;
+    prevMonth = month;
+    if (!isNew || i - lastLabel < 3 || i > weeks.length - 3) return;
+    lastLabel = i;
+    const x = n(CX + i * step);
+    p.push(`<line x1="${x}" y1="${TOP - 10}" x2="${x}" y2="${BOTTOM}" stroke="#21262d" stroke-dasharray="3 5"/>`);
+    p.push(`<text x="${n(x + 6)}" y="${BOTTOM + 22}" font-family="${MONO}" font-size="12" fill="#8b949e">${MONTHS[month - 1].toUpperCase()}</text>`);
   });
-  [["Mon", 1], ["Wed", 3], ["Fri", 5]].forEach(([n, r]) =>
-    p.push(`<text x="${PAD}" y="${(GY + r * STEP + CELL - 3).toFixed(1)}" font-family="${SANS}" font-size="13" fill="#8b949e">${n}</text>`));
+  p.push(`<line x1="${CX}" y1="${BASE}" x2="${CX + CW}" y2="${BASE}" stroke="#2a0b0d" stroke-width="2"/>`);
 
-  weeks.forEach((w, c) => {
-    const cells = w.contributionDays.map((d) =>
-      `<rect x="${(GX + c * STEP).toFixed(1)}" y="${(GY + d.weekday * STEP).toFixed(1)}" width="${CELL.toFixed(1)}" height="${CELL.toFixed(1)}" rx="3" fill="${LEVEL[d.contributionLevel] || LEVEL.NONE}"/>`);
-    p.push(`<g opacity="0">${fadeIn(0.4 + c * 0.015)}${cells.join("")}</g>`);
-  });
+  const draw = `<animate attributeName="stroke-dashoffset" from="1" to="0" dur="2.6s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".4 0 .2 1"/>`;
+  p.push(`<path d="${d}" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" fill="none" stroke="#ff5a4e" stroke-width="6" stroke-linejoin="round" opacity=".55" filter="url(#glow)">${draw}</path>`);
+  p.push(`<path id="pulse" d="${d}" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" fill="none" stroke="#ff5a4e" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">${draw}</path>`);
 
-  p.push(`<text x="${GX}" y="${legendY}" font-family="${SANS}" font-size="14" fill="#8b949e">${esc(total)} contributions in the last year</text>`);
-  const levels = Object.values(LEVEL);
-  const lx = W - PAD - levels.length * 18 - 36;
-  p.push(`<text x="${lx - 8}" y="${legendY}" text-anchor="end" font-family="${SANS}" font-size="13" fill="#8b949e">Less</text>`);
-  levels.forEach((col, i) => p.push(`<rect x="${lx + i * 18}" y="${legendY - 12}" width="14" height="14" rx="3" fill="${col}"/>`));
-  p.push(`<text x="${lx + levels.length * 18 + 4}" y="${legendY}" font-family="${SANS}" font-size="13" fill="#8b949e">More</text>`);
+  p.push(`<g opacity="0"><set attributeName="opacity" to="1" begin="2.6s"/>`
+    + `<circle r="11" fill="#ff5a4e" opacity=".5" filter="url(#dotglow)"/><circle r="4" fill="#ffe1de"/>`
+    + `<animateMotion dur="9s" begin="2.6s" repeatCount="indefinite"><mpath href="#pulse" xlink:href="#pulse"/></animateMotion></g>`);
+
+  if (peak) {
+    const px = n(peak.x), py = n(peak.y), right = peak.x < W - 220;
+    const tx = right ? px + 16 : px - 16, anchor = right ? "start" : "end";
+    p.push(`<g opacity="0">${fadeIn(2.6)}`
+      + `<circle cx="${px}" cy="${py}" r="5" fill="none" stroke="#ffe1de" stroke-width="2"/>`
+      + `<text x="${n(tx)}" y="${n(py + 4)}" text-anchor="${anchor}" font-family="${MONO}" font-size="12" fill="#e6edf3">PEAK · ${peak.c}/wk</text></g>`);
+  }
 
   if (hasLangs) {
-    const y = legendY + 34, bw = W - PAD * 2;
-    p.push(`<clipPath id="bar"><rect x="${PAD}" y="${y}" width="${bw}" height="8" rx="4"/></clipPath>`);
+    const y = BOTTOM + 60;
+    p.push(`<clipPath id="bar"><rect x="${PAD}" y="${y}" width="${CW}" height="8" rx="4"/></clipPath>`);
     let x = PAD;
     const segs = langs.map((l, i) => {
-      const w = (l.pct / 100) * bw;
-      const r = `<rect x="${x.toFixed(1)}" y="${y}" width="${w.toFixed(1)}" height="8" fill="${RAMP[i]}"/>`;
+      const w = (l.pct / 100) * CW;
+      const r = `<rect x="${n(x)}" y="${y}" width="${n(w)}" height="8" fill="${RAMP[i]}"/>`;
       x += w;
       return r;
     });
-    const step = bw / langs.length;
+    const col = CW / langs.length;
     const legend = langs.map((l, i) =>
-      `<circle cx="${PAD + step * i + 6}" cy="${y + 34}" r="5" fill="${RAMP[i]}"/>`
-      + `<text x="${PAD + step * i + 18}" y="${y + 39}" font-family="${SANS}" font-size="14" fill="#e6edf3">${esc(l.name)} <tspan fill="#8b949e">${l.pct.toFixed(1)}%</tspan></text>`);
-    p.push(`<g opacity="0">${fadeIn(1.2)}<g clip-path="url(#bar)">${segs.join("")}</g>${legend.join("")}</g>`);
+      `<circle cx="${n(PAD + col * i + 6)}" cy="${y + 32}" r="5" fill="${RAMP[i]}"/>`
+      + `<text x="${n(PAD + col * i + 18)}" y="${y + 37}" font-family="${SANS}" font-size="14" fill="#e6edf3">${esc(l.name)} <tspan fill="#8b949e">${l.pct.toFixed(1)}%</tspan></text>`);
+    p.push(`<g opacity="0">${fadeIn(2.8)}<g clip-path="url(#bar)">${segs.join("")}</g>${legend.join("")}</g>`);
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-<rect x=".5" y=".5" width="${W - 1}" height="${H - 1}" rx="16" fill="#0d1117" stroke="#21262d"/>
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+<defs>
+<pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#161b22"/></pattern>
+<filter id="glow" filterUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}"><feGaussianBlur stdDeviation="5"/></filter>
+<filter id="dotglow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5"/></filter>
+<radialGradient id="bg" cx="50%" cy="70%" r="70%"><stop offset="0" stop-color="#1a0a0c"/><stop offset="1" stop-color="#0d1117"/></radialGradient>
+</defs>
+<rect x=".5" y=".5" width="${W - 1}" height="${H - 1}" rx="16" fill="url(#bg)" stroke="#21262d"/>
 ${p.join("\n")}
 </svg>
 `;
