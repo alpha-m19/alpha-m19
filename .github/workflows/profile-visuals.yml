@@ -21,18 +21,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Stats card
-        run: node .github/scripts/stats.mjs
+      - name: Activity card
+        run: node .github/scripts/activity.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USERNAME: ${{ github.repository_owner }}
-
-      - name: Contribution snake (red)
-        uses: Platane/snk/svg-only@v3
-        with:
-          github_user_name: ${{ github.repository_owner }}
-          outputs: |
-            dist/snake-red.svg?palette=github-dark&color_snake=#ff5a4e&color_dots=#161b22,#4c0b0e,#8e1519,#d7262b,#ff5a4e
 
       - name: Commit and push
         run: |
