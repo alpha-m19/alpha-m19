@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/typing.svg" width="700" alt="Learning IT and software development" />
+  <img src="assets/typing.svg" width="700" alt="Building Minecraft plugins" />
 </p>
 
 <p align="center">
@@ -14,13 +14,11 @@
 
 ## About me
 
-I'm M19, a developer in the making. I got into programming by building systems for Minecraft servers — in-game shops, custom menus and economy features — and I'm now learning IT and software development properly, one real project at a time.
+Hey, I'm **M19**. I make Minecraft server plugins — shops, menus and economy systems — and I'm learning software development one project at a time.
 
-```yaml
-learning:  [Java, JavaScript, Python]
-building:  Minecraft server systems (menus, shops, economy)
-next:      web development and bigger standalone projects
-```
+- **Now:** Minecraft plugins in Java
+- **Learning:** JavaScript, Python and web development
+- **Next:** bigger projects outside Minecraft
 
 ## Tech stack
 
@@ -42,8 +40,8 @@ next:      web development and bigger standalone projects
 
 | Project | What it does | Built with |
 |---|---|---|
-| **Claim-block shop** | In-game GUI shop for buying GriefPrevention claim blocks, with a live balance check before each purchase | `DeluxeMenus` `Vault` `JavaScript` |
-| *Next project* | *In progress* | — |
+| **Claim-block shop** | In-game shop for buying land-claim blocks | `DeluxeMenus` `Vault` `JavaScript` |
+| *More soon* | *In progress* | — |
 
 <img src="assets/divider.svg" width="100%" />
 
@@ -58,5 +56,5 @@ next:      web development and bigger standalone projects
 </p>
 
 <p align="center">
-  <sub>Both graphics regenerate automatically every day from my GitHub activity.</sub>
+  <sub>Updated daily from my GitHub activity.</sub>
 </p>
