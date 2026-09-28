@@ -4,9 +4,16 @@ on:
   schedule:
     - cron: "0 3 * * *"   # once a day
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/**"]
 
 permissions:
   contents: write
+
+concurrency:
+  group: profile-visuals
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -14,12 +21,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: 3D contribution calendar (red)
-        uses: yoshi389111/github-profile-3d-contrib@latest
+      - name: Stats card
+        run: node .github/scripts/stats.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USERNAME: ${{ github.repository_owner }}
-          SETTING_JSON: .github/profile-3d-settings.json
 
       - name: Contribution snake (red)
         uses: Platane/snk/svg-only@v3
@@ -32,7 +38,7 @@ jobs:
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add -A .
+          git add -A dist
           if git commit -m "Update profile visuals"; then
             git push
           fi

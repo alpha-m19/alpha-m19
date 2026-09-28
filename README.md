@@ -48,7 +48,7 @@ Hey, I'm **M19**. I make Minecraft server plugins — shops, menus and economy s
 ## Activity
 
 <p align="center">
-  <img src="profile-3d-contrib/profile-3d-red.svg" width="100%" alt="3D contribution calendar with stats" />
+  <img src="dist/stats.svg" width="100%" alt="GitHub stats" />
 </p>
 
 <p align="center">
