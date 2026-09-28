@@ -3,7 +3,7 @@ name: Profile visuals
 on:
   schedule:
     - cron: "0 3 * * *"   # once a day
-  workflow_dispatch:       # lets you run it by hand from the Actions tab
+  workflow_dispatch:
 
 permissions:
   contents: write
