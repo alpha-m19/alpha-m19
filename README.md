@@ -8,14 +8,13 @@
 
 <p align="center">
   <img src="https://komarev.com/ghpvc/?username=alpha-m19&label=Profile%20views&color=e5262d&style=flat-square" alt="Profile views" />
-  <img src="https://img.shields.io/badge/Based_in-S%C3%A9tif%2C_Algeria-161b22?style=flat-square&labelColor=e5262d" alt="Based in Sétif, Algeria" />
 </p>
 
 <img src="assets/divider.svg" width="100%" />
 
 ## About me
 
-I'm M19, a developer in the making from Sétif, Algeria. I got into programming by building systems for Minecraft servers — in-game shops, custom menus and economy features — and I'm now learning IT and software development properly, one real project at a time.
+I'm M19, a developer in the making. I got into programming by building systems for Minecraft servers — in-game shops, custom menus and economy features — and I'm now learning IT and software development properly, one real project at a time.
 
 ```yaml
 learning:  [Java, JavaScript, Python]
