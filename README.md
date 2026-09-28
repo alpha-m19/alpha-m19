@@ -7,12 +7,12 @@
 </p>
 
 <p align="center">
-  <img src="https://komarev.com/ghpvc/?username=alpha-m19&label=Profile%20views&color=e5262d&style=flat-square" alt="Profile views" />
+  <img src="https://komarev.com/ghpvc/?username=alpha-m19&label=Profile%20views&color=e5262d&style=for-the-badge" alt="Profile views" />
 </p>
 
 <img src="assets/divider.svg" width="100%" />
 
-## About me
+<img src="assets/title-about.svg" width="100%" alt="About me" />
 
 Hey, I'm **M19**. I make Minecraft server plugins — shops, menus and economy systems — and I'm learning software development one project at a time.
 
@@ -20,7 +20,7 @@ Hey, I'm **M19**. I make Minecraft server plugins — shops, menus and economy s
 - **Learning:** JavaScript, Python and web development
 - **Next:** bigger projects outside Minecraft
 
-## Tech stack
+<img src="assets/title-stack.svg" width="100%" alt="Tech stack" />
 
 <p>
   <img src="https://img.shields.io/badge/Java-161b22?style=for-the-badge&logo=openjdk&logoColor=ff5a4e" />
@@ -36,7 +36,7 @@ Hey, I'm **M19**. I make Minecraft server plugins — shops, menus and economy s
   <img src="https://img.shields.io/badge/Minecraft_servers-161b22?style=for-the-badge&logo=minecraft&logoColor=ff5a4e" />
 </p>
 
-## Projects
+<img src="assets/title-projects.svg" width="100%" alt="Projects" />
 
 Minecraft plugins I've built under **AlphaStudio**, mostly in `Java 21` on `Paper` with `Gradle`. Source is private.
 
@@ -78,7 +78,7 @@ Minecraft plugins I've built under **AlphaStudio**, mostly in `Java 21` on `Pape
 
 <img src="assets/divider.svg" width="100%" />
 
-## Activity
+<img src="assets/title-activity.svg" width="100%" alt="Activity" />
 
 <p align="center">
   <img src="dist/skyline.svg" width="100%" alt="GitHub activity skyline" />
