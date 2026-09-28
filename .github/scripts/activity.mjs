@@ -43,6 +43,30 @@ async function fetchUser() {
   return json.data.user;
 }
 
+// The public profile calendar includes private-repo counts when "Private contributions" is enabled; the API token does not.
+async function fetchPublicCalendar(login) {
+  const html = process.env.MOCK_HTML
+    ? readFileSync(process.env.MOCK_HTML, "utf8")
+    : await (await fetch(`https://github.com/users/${login}/contributions`, { headers: { "User-Agent": "profile-activity" } })).text();
+  const dateById = {};
+  for (const m of html.matchAll(/<td[^>]*data-date="([\d-]+)"[^>]*id="([^"]+)"/g)) dateById[m[2]] = m[1];
+  const byDate = {};
+  for (const m of html.matchAll(/<tool-tip[^>]*for="([^"]+)"[^>]*>([^<]*)<\/tool-tip>/g)) {
+    const date = dateById[m[1]];
+    if (!date) continue;
+    const c = /^([\d,]+) contribution/.exec(m[2]);
+    byDate[date] = c ? +c[1].replace(/,/g, "") : 0;
+  }
+  const dates = Object.keys(byDate).sort();
+  if (dates.length < 300) return null;
+  const weeks = [];
+  for (const date of dates) {
+    if (!weeks.length || new Date(`${date}T00:00:00Z`).getUTCDay() === 0) weeks.push({ contributionDays: [] });
+    weeks[weeks.length - 1].contributionDays.push({ date, contributionCount: byDate[date] });
+  }
+  return { totalContributions: dates.reduce((a, d) => a + byDate[d], 0), weeks };
+}
+
 function streaks(days) {
   let best = 0, run = 0;
   for (const d of days) {
@@ -193,7 +217,7 @@ ${p.join("\n")}
 }
 
 const user = await fetchUser();
-const cal = user.contributionsCollection.contributionCalendar;
+const cal = (await fetchPublicCalendar(process.env.USERNAME).catch(() => null)) ?? user.contributionsCollection.contributionCalendar;
 const days = cal.weeks.flatMap((w) => w.contributionDays);
 const repoNodes = user.repositories.nodes;
 
