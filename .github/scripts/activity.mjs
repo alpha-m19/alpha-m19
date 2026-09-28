@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 
 const OUT = process.env.OUT || "dist/activity.svg";
 const RAMP = ["#ff5a4e", "#d7262b", "#a3181d", "#6e1014", "#484f58"];
@@ -124,6 +124,128 @@ function pulsePath(counts, x0, width, base, minA, maxA) {
   return { d: d.join(" "), peak };
 }
 
+function hud(p, title, { first, last, total, current, best, repos, stars }, W, PAD) {
+  p.push(`<g><circle cx="${PAD + 5}" cy="45" r="5" fill="#ff5a4e"><animate attributeName="opacity" values="1;.2;1" dur="1.2s" repeatCount="indefinite"/></circle>`
+    + `<text x="${PAD + 18}" y="50" font-family="${MONO}" font-size="13" letter-spacing="3" fill="#e5262d">${title}</text></g>`);
+  p.push(`<text x="${W - PAD}" y="50" text-anchor="end" font-family="${MONO}" font-size="13" fill="#8b949e">${monthYear(first)} – ${monthYear(last)}</text>`);
+  const stats = [
+    ["CONTRIBUTIONS", total, "", true],
+    ["CURRENT STREAK", current, current === 1 ? " day" : " days"],
+    ["BEST STREAK", best, best === 1 ? " day" : " days"],
+    ["PUBLIC REPOS", repos, stars ? ` · ${stars}★` : ""],
+  ];
+  const colW = (W - PAD * 2) / stats.length;
+  stats.forEach(([label, value, unit, accent], i) => {
+    const x = PAD + colW * i;
+    p.push(`<g opacity="0">${fadeIn(0.1 * i)}`
+      + `<text x="${x}" y="96" font-family="${MONO}" font-size="12" letter-spacing="2" fill="#8b949e">${label}</text>`
+      + `<text x="${x}" y="136" font-family="${SANS}" font-size="36" font-weight="700" fill="${accent ? "#ff5a4e" : "#e6edf3"}">${esc(value)}<tspan font-size="17" font-weight="400" fill="#8b949e">${esc(unit)}</tspan></text></g>`);
+  });
+}
+
+function monthMarks(weeks) {
+  const marks = [];
+  let prev = -1, lastLabel = -4;
+  weeks.forEach((w, i) => {
+    const date = w.contributionDays[0].date;
+    const month = +date.slice(5, 7);
+    const isNew = i === 0 ? +date.slice(8) <= 14 : month !== prev;
+    prev = month;
+    if (!isNew || i - lastLabel < 3 || i > weeks.length - 3) return;
+    lastLabel = i;
+    marks.push({ i, label: MONTHS[month - 1].toUpperCase() });
+  });
+  return marks;
+}
+
+function rng(seed) {
+  let s = seed >>> 0;
+  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+}
+
+function renderSkyline({ weeks, total, current, best, repos, stars }) {
+  const W = 1200, PAD = 60, CW = W - PAD * 2, GROUND = 350, SKY = 168, H = 400;
+  const counts = weeks.map((w) => w.contributionDays.reduce((a, d) => a + d.contributionCount, 0));
+  const max = Math.max(...counts, 1);
+  const step = CW / weeks.length, BW = step - 3;
+  const first = weeks[0].contributionDays[0].date;
+  const lastDays = weeks[weeks.length - 1].contributionDays;
+  const last = lastDays[lastDays.length - 1].date;
+  const rand = rng(419);
+  const p = [];
+
+  hud(p, "LIVE // SKYLINE", { first, last, total, current, best, repos, stars }, W, PAD);
+
+  // sky: stars and a red moon
+  const starEls = [];
+  for (let i = 0; i < 46; i++) {
+    const x = n(PAD + rand() * CW), y = n(SKY + rand() * 90), r = n(0.6 + rand() * 1.1);
+    const tw = rand() < 0.35 ? `<animate attributeName="opacity" values=".9;.2;.9" dur="${n(2 + rand() * 3)}s" begin="${n(rand() * 3)}s" repeatCount="indefinite"/>` : "";
+    starEls.push(`<circle cx="${x}" cy="${y}" r="${r}" fill="#e6edf3" opacity=".7">${tw}</circle>`);
+  }
+  p.push(`<g>${starEls.join("")}</g>`);
+  p.push(`<circle cx="190" cy="214" r="46" fill="#ff5a4e" opacity=".12" filter="url(#moonglow)"/>`
+    + `<circle cx="190" cy="214" r="24" fill="url(#moon)"/>`);
+
+  // distant silhouette so quiet weeks still read as a city
+  const far = [`M${PAD} ${GROUND}`];
+  for (let i = 0; i < weeks.length; i++) {
+    const h = n(18 + rand() * 52);
+    far.push(`V${GROUND - h} H${n(PAD + (i + 1) * step)}`);
+  }
+  far.push(`V${GROUND} Z`);
+  p.push(`<path d="${far.join(" ")}" fill="#11151c"/>`);
+
+  let peak = null;
+  counts.forEach((c, i) => {
+    if (!c) return;
+    const t = Math.sqrt(c / max);
+    const h = n(34 + (GROUND - SKY - 20 - 34) * t);
+    const x = n(PAD + i * step + 1.5);
+    if (!peak || c > peak.c) peak = { c, x: x + BW / 2, y: GROUND - h };
+    const win = [];
+    for (let wy = -h + 8; wy < -8; wy += 9) {
+      for (const wx of [3.5, BW - 7]) {
+        const lit = rand() < 0.22 + 0.6 * t;
+        const flick = lit && rand() < 0.08 ? `<animate attributeName="opacity" values="1;.25;1;1" dur="${n(3 + rand() * 4)}s" repeatCount="indefinite"/>` : "";
+        win.push(`<rect x="${n(wx)}" y="${n(wy)}" width="3.5" height="4" fill="${lit ? (rand() < 0.3 ? "#ffb3ad" : "#ff5a4e") : "#1f242c"}">${flick}</rect>`);
+      }
+    }
+    const rise = `<animateTransform attributeName="transform" type="scale" from="1 0" to="1 1" begin="${n(0.3 + i * 0.03)}s" dur=".9s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".2 .8 .2 1"/>`;
+    p.push(`<g transform="translate(${x} ${GROUND})"><g transform="scale(1 0)">${rise}`
+      + `<rect x="0" y="${-h}" width="${n(BW)}" height="${h}" fill="url(#tower)"/>`
+      + `<rect x="0" y="${-h}" width="${n(BW)}" height="2" fill="#ff5a4e" opacity="${n(0.35 + 0.65 * t)}"/>`
+      + win.join("") + `</g></g>`);
+  });
+
+  if (peak) {
+    const ax = n(peak.x), top = n(peak.y - 22), right = peak.x < W - 220;
+    p.push(`<g opacity="0">${fadeIn(2.2)}`
+      + `<line x1="${ax}" y1="${n(peak.y)}" x2="${ax}" y2="${top}" stroke="#8b949e" stroke-width="1.5"/>`
+      + `<circle cx="${ax}" cy="${top}" r="3" fill="#ff5a4e"><animate attributeName="opacity" values="1;.15;1" dur="1.4s" repeatCount="indefinite"/></circle>`
+      + `<text x="${n(right ? ax + 12 : ax - 12)}" y="${n(top + 4)}" text-anchor="${right ? "start" : "end"}" font-family="${MONO}" font-size="12" fill="#e6edf3">PEAK · ${peak.c}/wk</text></g>`);
+  }
+
+  p.push(`<rect x="${PAD}" y="${GROUND}" width="${CW}" height="2" fill="#30363d"/>`);
+  for (const m of monthMarks(weeks)) {
+    p.push(`<text x="${n(PAD + m.i * step)}" y="${GROUND + 26}" font-family="${MONO}" font-size="12" fill="#8b949e">${m.label}</text>`);
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+<defs>
+<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1117"/><stop offset=".7" stop-color="#130b10"/><stop offset="1" stop-color="#1f0b0e"/></linearGradient>
+<linearGradient id="tower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#232a33"/><stop offset="1" stop-color="#161b22"/></linearGradient>
+<radialGradient id="moon" cx="40%" cy="40%" r="60%"><stop offset="0" stop-color="#ff8a80"/><stop offset="1" stop-color="#b3141b"/></radialGradient>
+<filter id="moonglow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="14"/></filter>
+<clipPath id="card"><rect width="${W}" height="${H}" rx="16"/></clipPath>
+</defs>
+<g clip-path="url(#card)"><rect width="${W}" height="${H}" fill="url(#sky)"/></g>
+<rect x=".5" y=".5" width="${W - 1}" height="${H - 1}" rx="16" fill="none" stroke="#21262d"/>
+${p.join("\n")}
+</svg>
+`;
+}
+
 function render({ weeks, total, current, best, repos, stars, langs }) {
   const W = 1200, PAD = 60, CX = PAD, CW = W - PAD * 2;
   const TOP = 176, BASE = 296, BOTTOM = 336;
@@ -137,37 +259,14 @@ function render({ weeks, total, current, best, repos, stars, langs }) {
   const { d, peak } = pulsePath(counts, CX, CW, BASE, 30, BASE - TOP - 14);
   const p = [];
 
-  p.push(`<g><circle cx="${PAD + 5}" cy="45" r="5" fill="#ff5a4e"><animate attributeName="opacity" values="1;.2;1" dur="1.2s" repeatCount="indefinite"/></circle>`
-    + `<text x="${PAD + 18}" y="50" font-family="${MONO}" font-size="13" letter-spacing="3" fill="#e5262d">LIVE // PULSE</text></g>`);
-  p.push(`<text x="${W - PAD}" y="50" text-anchor="end" font-family="${MONO}" font-size="13" fill="#8b949e">${monthYear(first)} – ${monthYear(last)}</text>`);
-
-  const stats = [
-    ["CONTRIBUTIONS", total, "", true],
-    ["CURRENT STREAK", current, current === 1 ? " day" : " days"],
-    ["BEST STREAK", best, best === 1 ? " day" : " days"],
-    ["PUBLIC REPOS", repos, stars ? ` · ${stars}★` : ""],
-  ];
-  const colW = CW / stats.length;
-  stats.forEach(([label, value, unit, accent], i) => {
-    const x = PAD + colW * i;
-    p.push(`<g opacity="0">${fadeIn(0.1 * i)}`
-      + `<text x="${x}" y="96" font-family="${MONO}" font-size="12" letter-spacing="2" fill="#8b949e">${label}</text>`
-      + `<text x="${x}" y="136" font-family="${SANS}" font-size="36" font-weight="700" fill="${accent ? "#ff5a4e" : "#e6edf3"}">${esc(value)}<tspan font-size="17" font-weight="400" fill="#8b949e">${esc(unit)}</tspan></text></g>`);
-  });
+  hud(p, "LIVE // PULSE", { first, last, total, current, best, repos, stars }, W, PAD);
 
   p.push(`<rect x="${CX}" y="${TOP - 10}" width="${CW}" height="${BOTTOM - TOP + 10}" fill="url(#grid)"/>`);
-  let prevMonth = -1, lastLabel = -4;
-  weeks.forEach((w, i) => {
-    const date = w.contributionDays[0].date;
-    const month = +date.slice(5, 7);
-    const isNew = i === 0 ? +date.slice(8) <= 14 : month !== prevMonth;
-    prevMonth = month;
-    if (!isNew || i - lastLabel < 3 || i > weeks.length - 3) return;
-    lastLabel = i;
-    const x = n(CX + i * step);
+  for (const m of monthMarks(weeks)) {
+    const x = n(CX + m.i * step);
     p.push(`<line x1="${x}" y1="${TOP - 10}" x2="${x}" y2="${BOTTOM}" stroke="#21262d" stroke-dasharray="3 5"/>`);
-    p.push(`<text x="${n(x + 6)}" y="${BOTTOM + 22}" font-family="${MONO}" font-size="12" fill="#8b949e">${MONTHS[month - 1].toUpperCase()}</text>`);
-  });
+    p.push(`<text x="${n(x + 6)}" y="${BOTTOM + 22}" font-family="${MONO}" font-size="12" fill="#8b949e">${m.label}</text>`);
+  }
   p.push(`<line x1="${CX}" y1="${BASE}" x2="${CX + CW}" y2="${BASE}" stroke="#2a0b0d" stroke-width="2"/>`);
 
   const draw = `<animate attributeName="stroke-dashoffset" from="1" to="0" dur="2.6s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".4 0 .2 1"/>`;
@@ -221,14 +320,16 @@ const cal = (await fetchPublicCalendar(process.env.USERNAME).catch(() => null)) 
 const days = cal.weeks.flatMap((w) => w.contributionDays);
 const repoNodes = user.repositories.nodes;
 
-const svg = render({
+const data = {
   weeks: cal.weeks,
   total: cal.totalContributions,
   ...streaks(days),
   repos: user.repositories.totalCount,
   stars: repoNodes.reduce((a, r) => a + r.stargazerCount, 0),
   langs: topLanguages(repoNodes),
-});
+};
+const skylineOut = join(dirname(OUT), "skyline.svg");
 mkdirSync(dirname(OUT), { recursive: true });
-writeFileSync(OUT, svg);
-console.log(`wrote ${OUT}`);
+writeFileSync(OUT, render(data));
+writeFileSync(skylineOut, renderSkyline(data));
+console.log(`wrote ${OUT} and ${skylineOut}`);

@@ -81,5 +81,5 @@ Minecraft plugins I've built under **AlphaStudio**, mostly in `Java 21` on `Pape
 ## Activity
 
 <p align="center">
-  <img src="dist/activity.svg" width="100%" alt="GitHub activity" />
+  <img src="dist/skyline.svg" width="100%" alt="GitHub activity skyline" />
 </p>
