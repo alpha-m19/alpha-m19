@@ -36,46 +36,6 @@ Hey, I'm **M19**. I make Minecraft server plugins — shops, menus and economy s
   <img src="https://img.shields.io/badge/Minecraft_servers-161b22?style=for-the-badge&logo=minecraft&logoColor=ff5a4e" />
 </p>
 
-<img src="assets/title-projects.svg" width="100%" alt="Projects" />
-
-Minecraft plugins I've built under **AlphaStudio**, mostly in `Java 21` on `Paper` with `Gradle`. Source is private.
-
-#### Server cores
-
-| Plugin | What it does |
-|---|---|
-| **Alpha System** | All-in-one server core: homes, teleports, economy, chat, moderation and Discord link |
-| **AlphaWildSystem** | Core for Wild PvP servers: arenas, kits, crates, combat and kill rewards |
-| **AlphaPractice** | PvP practice plugin with its own menus |
-
-#### Gameplay
-
-| Plugin | What it does |
-|---|---|
-| **AlphaLevels** | Earn XP from playtime and kills, level up for rewards |
-| **AlphaQuests** | Quests, quest chains, streaks and timed races |
-| **AlphaRewards** | Daily rewards and streak rewards |
-| **AlphaEvent** | Spleef event minigame |
-| **StealABlock** | Block-stealing minigame |
-| **AlphaTools** | Special tools: drill, tree chopper, infinite buckets and more |
-
-#### Economy
-
-| Plugin | What it does |
-|---|---|
-| **AlphaSell** | Sell items for money through a clean menu |
-| **AlphaOrder** | Buy-order marketplace between players |
-| **Claim-block shop** | In-game shop for buying land-claim blocks |
-
-#### Utility
-
-| Plugin | What it does |
-|---|---|
-| **AlphaTPA** | Teleport requests with confirm menus, countdown and safe teleport |
-| **AlphaGraves** | Saves your items in a grave when you die |
-| **AlphaFirstSpawn** | Sends new players to a set spawn on first join |
-| **AlphaAlytraBoost** | Infinite elytra boost with cooldown for lobbies |
-
 <img src="assets/divider.svg" width="100%" />
 
 <img src="assets/title-activity.svg" width="100%" alt="Activity" />
